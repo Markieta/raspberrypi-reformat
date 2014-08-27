@@ -1,0 +1,103 @@
+#!/usr/bin/bash
+#
+# Script to take an SD card image created by Livemedia-Creator (such as for a
+# Raspberry Pi) with an ext4 boot partition and reformat it to vfat. 
+#
+# To use this script, provide the image name as
+# the first argument.
+# Example "./revfat image-name.img"
+#
+# Requirements (Fedora 17 package):
+# bash (bash)
+# fdisk (util-linux)
+# kpartx (kpartx)
+#
+# Version 1.0 2013-04-05
+#
+# Authors:
+# Andrew Greene, Seneca College 2013-04-05
+# Christopher Markieta
+#
+
+set -e
+
+if [ $(id -u) -ne 0 ]; then
+   echo "Root privileges are required for running $0."
+   exit 1
+fi
+
+if [ -z $1 ]; then
+   echo "Usage: $0 [image]"
+   exit 1
+fi
+
+# partition 
+loopdev=$(kpartx -av "$1" | awk  'NR==1 {print $3}') 
+echo -e "$loopdev"
+
+# You 
+sleep 3
+
+#create temp dirs
+mkdir ./temp
+mkdir -p ./tmp/boot
+
+
+## mount boot partition
+mount -o rw /dev/mapper/$loopdev ./temp
+
+## copy boot data to temp dir
+cp -r ./temp/* ./tmp/boot
+
+#rename kernel.img work around for boot 
+cp ./tmp/boot/kernel-3.* ./tmp/boot/kernel.img
+
+#unmount temp boot dir
+umount ./temp
+
+#reformat boot parttions to vfat
+mkfs -t vfat -n boot /dev/mapper/$loopdev
+sleep 3
+
+echo "1"
+# update partition fs info
+echo "t
+1
+c
+d
+3
+w
+" | fdisk "$1"
+echo "2"
+
+sleep 3
+## re-mount boot partition
+echo "3"
+mount -o rw /dev/mapper/$loopdev ./temp
+
+#cp orginal boot data to new vfat partition
+echo "4"
+cp -r ./tmp/boot/* ./temp
+sleep 10
+# umount tmp boot again
+echo "5"
+umount ./temp
+
+echo "6"
+sync
+
+echo "7"
+# remove partions and loopback devs
+kpartx -dv "$1"
+
+sleep 3
+
+echo "8"
+# cleanup
+dmsetup remove $loopdev
+sleep 2
+
+echo "9"
+rmdir  ./temp
+rm -rf ./tmp
+echo "10 WOOOHOOO"
