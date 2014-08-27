@@ -12,54 +12,44 @@
 # fdisk (util-linux)
 # kpartx (kpartx)
 #
-# Version 1.0 2013-04-05
+# Version 1.1 2014-08-27
 #
 # Authors:
-# Andrew Greene, Seneca College 2013-04-05
-# Christopher Markieta
+# Andrew Greene,        Seneca College 2013-04-05
+# Christopher Markieta, Seneca College 2014-08-27
 #
 
 set -e
 
+MY_DIR=$(dirname $0)
+
 if [ $(id -u) -ne 0 ]; then
-   echo "Root privileges are required for running $0."
-   exit 1
+    echo "Root privileges are required for running $0."
+    exit 1
+elif [ -z $1 ]; then
+    echo "Usage: $0 [image]"
+    exit 1
 fi
 
-if [ -z $1 ]; then
-   echo "Usage: $0 [image]"
-   exit 1
-fi
+loopdev=$(kpartx -avs "$1" | awk 'NR==1 {print $3}')
+echo "$loopdev"
 
-# partition 
-loopdev=$(kpartx -av "$1" | awk  'NR==1 {print $3}') 
-echo -e "$loopdev"
+mkdir    "$MY_DIR"/temp/
+mkdir -p "$MY_DIR"/tmp/boot/
 
-# You 
-sleep 3
+# mount boot partition
+mount -o rw /dev/mapper/$loopdev "$MY_DIR"/temp/
 
-#create temp dirs
-mkdir ./temp
-mkdir -p ./tmp/boot
+cp -r "$MY_DIR"/temp/* "$MY_DIR"/tmp/boot/
 
+# Rename kernel.img workaround for boot
+cp "$MY_DIR"/tmp/boot/kernel-3.* "$MY_DIR"/tmp/boot/kernel.img
 
-## mount boot partition
-mount -o rw /dev/mapper/$loopdev ./temp
+umount "$MY_DIR"/temp/
 
-## copy boot data to temp dir
-cp -r ./temp/* ./tmp/boot
-
-#rename kernel.img work around for boot 
-cp ./tmp/boot/kernel-3.* ./tmp/boot/kernel.img
-
-#unmount temp boot dir
-umount ./temp
-
-#reformat boot parttions to vfat
+# format boot parttion to vfat
 mkfs -t vfat -n boot /dev/mapper/$loopdev
-sleep 3
 
-echo "1"
 # update partition fs info
 echo "t
 1
@@ -68,29 +58,15 @@ d
 3
 w
 " | fdisk "$1"
-echo "2"
 
-sleep 3
-## re-mount boot partition
-echo "3"
-mount -o rw /dev/mapper/$loopdev ./temp
+# re-mount boot partition
+mount -o rw /dev/mapper/$loopdev "$MY_DIR"/temp
 
-#cp orginal boot data to new vfat partition
-echo "4"
-cp -r ./tmp/boot/* ./temp
-sleep 10
-# umount tmp boot again
-echo "5"
-umount ./temp
+# copy original boot data to new vfat partition
+cp -r "$MY_DIR"/tmp/boot/* "$MY_DIR"/temp
 
-echo "6"
-sync
-
-echo "7"
-# remove partions and loopback devs
+umount "$MY_DIR"/temp
 kpartx -dv "$1"
 
-echo "9"
-rmdir  ./temp
-rm -rf ./tmp
-echo "10 WOOOHOOO"
+rmdir  "$MY_DIR"/temp/
+rm -rf "$MY_DIR"/tmp/
