@@ -90,13 +90,6 @@ echo "7"
 # remove partions and loopback devs
 kpartx -dv "$1"
 
-sleep 3
-
-echo "8"
-# cleanup
-dmsetup remove $loopdev
-sleep 2
-
 echo "9"
 rmdir  ./temp
 rm -rf ./tmp
