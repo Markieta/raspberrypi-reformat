@@ -48,7 +48,7 @@ cp "$MY_DIR"/tmp/boot/kernel-3.* "$MY_DIR"/tmp/boot/kernel.img
 umount "$MY_DIR"/temp/
 
 # format boot parttion to vfat
-mkfs -t vfat -n boot /dev/mapper/$loopdev
+mkfs -t vfat -n BOOT /dev/mapper/$loopdev
 
 # update partition fs info
 echo "t
@@ -60,12 +60,12 @@ w
 " | fdisk "$1"
 
 # re-mount boot partition
-mount -o rw /dev/mapper/$loopdev "$MY_DIR"/temp
+mount -o rw /dev/mapper/$loopdev "$MY_DIR"/temp/
 
 # copy original boot data to new vfat partition
-cp -r "$MY_DIR"/tmp/boot/* "$MY_DIR"/temp
+cp -r "$MY_DIR"/tmp/boot/* "$MY_DIR"/temp/
 
-umount "$MY_DIR"/temp
+umount "$MY_DIR"/temp/
 kpartx -dv "$1"
 
 rmdir  "$MY_DIR"/temp/
